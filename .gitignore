@@ -3,3 +3,5 @@
 !*.sql
 !*.go
 !sqlc.yaml
+!seed-demo-messages.sql
+!README.md

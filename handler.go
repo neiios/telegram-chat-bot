@@ -197,6 +197,20 @@ func (h *Handler) handleRoulette(ctx context.Context, msg *Message) error {
 		return h.showExistingResult(ctx, msg, existing)
 	}
 
+	setID, err := h.storage.Queries.GetRandomMessageSetID(ctx)
+	if err == nil {
+		messages, err := h.storage.Queries.GetSetMessages(ctx, setID)
+		if err != nil {
+			log.Printf("Error fetching message set %d: %v", setID, err)
+		}
+		for _, body := range messages {
+			if err := h.send(ctx, chatID, body); err != nil {
+				log.Printf("Error sending sequence message: %v", err)
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}
+
 	text := fmt.Sprintf("Today's chosen one is <b>%s</b>!", formatUserName(winner.FirstName, winner.Username))
 	return h.send(ctx, msg.Chat.ID, text)
 }
@@ -233,7 +247,7 @@ func (h *Handler) handleStats(ctx context.Context, msg *Message) error {
 	var sb strings.Builder
 	sb.WriteString("<b>Roulette Stats</b>\n\n")
 	for i, s := range stats {
-		sb.WriteString(fmt.Sprintf("%d. %s — %d win(s)\n", i+1, formatUserName(s.FirstName, s.Username), s.Wins))
+		fmt.Fprintf(&sb, "%d. %s — %d win(s)\n", i+1, formatUserName(s.FirstName, s.Username), s.Wins)
 	}
 
 	return h.send(ctx, msg.Chat.ID, sb.String())

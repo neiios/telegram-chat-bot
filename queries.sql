@@ -38,3 +38,10 @@ WHERE chat_id = ? AND user_id = ?;
 
 -- name: DeleteTodayResult :execresult
 DELETE FROM results WHERE chat_id = ? AND played_date = ?;
+
+-- name: GetRandomMessageSetID :one
+SELECT id FROM roulette_message_sets ORDER BY RANDOM() LIMIT 1;
+
+-- name: GetSetMessages :many
+SELECT body FROM roulette_set_messages
+WHERE set_id = ? ORDER BY position;

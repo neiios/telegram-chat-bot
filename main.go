@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 func main() {
@@ -47,8 +46,6 @@ func main() {
 				log.Println("Shutting down...")
 				return
 			}
-			log.Printf("GetUpdates error: %v", err)
-			time.Sleep(5 * time.Second)
 			continue
 		}
 

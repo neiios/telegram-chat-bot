@@ -16,3 +16,15 @@ CREATE TABLE IF NOT EXISTS results (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_results_chat_date ON results (chat_id, played_date);
+
+CREATE TABLE IF NOT EXISTS roulette_message_sets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT
+);
+
+CREATE TABLE IF NOT EXISTS roulette_set_messages (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    set_id  INTEGER NOT NULL REFERENCES roulette_message_sets(id),
+    position INTEGER NOT NULL,
+    body    TEXT NOT NULL,
+    UNIQUE(set_id, position)
+);
