@@ -35,3 +35,6 @@ ORDER BY wins DESC, p.first_name;
 SELECT first_name, username
 FROM participants
 WHERE chat_id = ? AND user_id = ?;
+
+-- name: DeleteTodayResult :execresult
+DELETE FROM results WHERE chat_id = ? AND played_date = ?;

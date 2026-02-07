@@ -51,6 +51,8 @@ func (h *Handler) HandleUpdate(ctx context.Context, update Update) {
 		err = h.handleStats(ctx, msg)
 	case "/participants":
 		err = h.handleParticipants(ctx, msg)
+	case "/reset":
+		err = h.handleReset(ctx, msg)
 	}
 
 	if err != nil {
@@ -235,6 +237,30 @@ func (h *Handler) handleStats(ctx context.Context, msg *Message) error {
 	}
 
 	return h.send(ctx, msg.Chat.ID, sb.String())
+}
+
+func (h *Handler) handleReset(ctx context.Context, msg *Message) error {
+	chatID := msg.Chat.ID
+	date := today()
+
+	result, err := h.storage.Queries.DeleteTodayResult(ctx, db.DeleteTodayResultParams{
+		ChatID:     chatID,
+		PlayedDate: date,
+	})
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return h.send(ctx, chatID, "No result to reset for today.")
+	}
+
+	return h.send(ctx, chatID, "Today's result has been reset. You can run /roulette again!")
 }
 
 func (h *Handler) handleParticipants(ctx context.Context, msg *Message) error {
