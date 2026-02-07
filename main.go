@@ -16,7 +16,12 @@ func main() {
 
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		dbPath = "roulette.db"
+		dbPath = "bot.db"
+	}
+
+	rollCmd := os.Getenv("ROLL_COMMAND")
+	if rollCmd == "" {
+		rollCmd = "roll"
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -36,7 +41,12 @@ func main() {
 	}
 	defer storage.Close()
 
-	handler := NewHandler(bot, storage, me.Username)
+	tr, err := NewTranslator(ctx, storage.Queries)
+	if err != nil {
+		log.Fatalf("Failed to load translations: %v", err)
+	}
+
+	handler := NewHandler(bot, storage, tr, me.Username, rollCmd)
 
 	var offset int64
 	for {

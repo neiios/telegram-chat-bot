@@ -17,14 +17,18 @@ import (
 type Handler struct {
 	bot     *BotClient
 	storage *Storage
+	tr      *Translator
 	botName string
+	rollCmd string
 }
 
-func NewHandler(bot *BotClient, storage *Storage, botName string) *Handler {
+func NewHandler(bot *BotClient, storage *Storage, tr *Translator, botName, rollCmd string) *Handler {
 	return &Handler{
 		bot:     bot,
 		storage: storage,
+		tr:      tr,
 		botName: botName,
+		rollCmd: "/" + rollCmd,
 	}
 }
 
@@ -45,7 +49,7 @@ func (h *Handler) HandleUpdate(ctx context.Context, update Update) {
 		err = h.handleJoin(ctx, msg)
 	case "/leave":
 		err = h.handleLeave(ctx, msg)
-	case "/roulette":
+	case h.rollCmd:
 		err = h.handleRoulette(ctx, msg)
 	case "/stats":
 		err = h.handleStats(ctx, msg)
@@ -92,7 +96,7 @@ func extractCommand(msg *Message, botName string) string {
 func formatUserName(firstName, username string) string {
 	name := html.EscapeString(firstName)
 	if username != "" {
-		return fmt.Sprintf("%s (@%s)", name, html.EscapeString(username))
+		return fmt.Sprintf("@%s", html.EscapeString(username))
 	}
 	return name
 }
@@ -132,8 +136,7 @@ func (h *Handler) handleJoin(ctx context.Context, msg *Message) error {
 		return err
 	}
 
-	text := fmt.Sprintf("%s joined the roulette!", formatUserName(user.FirstName, user.Username))
-	return h.send(ctx, msg.Chat.ID, text)
+	return h.send(ctx, msg.Chat.ID, h.tr.Get(TrJoinSuccess))
 }
 
 func (h *Handler) handleLeave(ctx context.Context, msg *Message) error {
@@ -153,9 +156,9 @@ func (h *Handler) handleLeave(ctx context.Context, msg *Message) error {
 
 	var text string
 	if rows > 0 {
-		text = fmt.Sprintf("%s left the roulette.", formatUserName(user.FirstName, user.Username))
+		text = h.tr.Getf(TrLeaveSuccess, formatUserName(user.FirstName, user.Username))
 	} else {
-		text = "You're not in the roulette."
+		text = h.tr.Get(TrLeaveNotInGame)
 	}
 	return h.send(ctx, msg.Chat.ID, text)
 }
@@ -180,6 +183,10 @@ func (h *Handler) handleRoulette(ctx context.Context, msg *Message) error {
 		return err
 	}
 
+	if len(participants) == 0 {
+		return h.send(ctx, chatID, h.tr.Get(TrNoParticipants))
+	}
+
 	winner := participants[rand.IntN(len(participants))]
 
 	if err := h.storage.Queries.SaveResult(ctx, db.SaveResultParams{
@@ -197,22 +204,38 @@ func (h *Handler) handleRoulette(ctx context.Context, msg *Message) error {
 		return h.showExistingResult(ctx, msg, existing)
 	}
 
+	winnerName := formatUserName(winner.FirstName, winner.Username)
+
 	setID, err := h.storage.Queries.GetRandomMessageSetID(ctx)
-	if err == nil {
-		messages, err := h.storage.Queries.GetSetMessages(ctx, setID)
-		if err != nil {
-			log.Printf("Error fetching message set %d: %v", setID, err)
+	if err != nil {
+		text := h.tr.Getf(TrFallbackWinner, "<b>"+winnerName+"</b>")
+		return h.send(ctx, chatID, text)
+	}
+
+	messages, err := h.storage.Queries.GetSetMessages(ctx, setID)
+	if err != nil {
+		log.Printf("Error fetching message set %d: %v", setID, err)
+		text := h.tr.Getf(TrFallbackWinner, "<b>"+winnerName+"</b>")
+		return h.send(ctx, chatID, text)
+	}
+
+	for i, body := range messages {
+		var text string
+		if i == len(messages)-1 {
+			text = fmt.Sprintf(body, "<b>"+winnerName+"</b>")
+		} else {
+			text = body
 		}
-		for _, body := range messages {
-			if err := h.send(ctx, chatID, body); err != nil {
-				log.Printf("Error sending sequence message: %v", err)
-			}
-			time.Sleep(1 * time.Second)
+
+		if err := h.send(ctx, chatID, text); err != nil {
+			log.Printf("Error sending sequence message: %v", err)
+		}
+		if i < len(messages)-1 {
+			time.Sleep(2 * time.Second)
 		}
 	}
 
-	text := fmt.Sprintf("Today's chosen one is <b>%s</b>!", formatUserName(winner.FirstName, winner.Username))
-	return h.send(ctx, msg.Chat.ID, text)
+	return nil
 }
 
 func (h *Handler) showExistingResult(ctx context.Context, msg *Message, result db.GetTodayResultRow) error {
@@ -223,14 +246,14 @@ func (h *Handler) showExistingResult(ctx context.Context, msg *Message, result d
 
 	var name string
 	if errors.Is(err, sql.ErrNoRows) {
-		name = fmt.Sprintf("user %d", result.UserID)
+		name = h.tr.Getf(TrUnknownUser, result.UserID)
 	} else if err != nil {
 		return err
 	} else {
 		name = formatUserName(p.FirstName, p.Username)
 	}
 
-	text := fmt.Sprintf("Today's roulette already played! The chosen one is <b>%s</b>.", name)
+	text := h.tr.Getf(TrAlreadyPlayed, "<b>"+name+"</b>")
 	return h.send(ctx, msg.Chat.ID, text)
 }
 
@@ -241,13 +264,15 @@ func (h *Handler) handleStats(ctx context.Context, msg *Message) error {
 	}
 
 	if len(stats) == 0 {
-		return h.reply(ctx, msg, "No participants yet. Use /join to register!")
+		return h.reply(ctx, msg, h.tr.Get(TrNoParticipants))
 	}
 
 	var sb strings.Builder
-	sb.WriteString("<b>Roulette Stats</b>\n\n")
+	sb.WriteString(h.tr.Get(TrStatsHeader))
+	sb.WriteString("\n\n")
 	for i, s := range stats {
-		fmt.Fprintf(&sb, "%d. %s — %d win(s)\n", i+1, formatUserName(s.FirstName, s.Username), s.Wins)
+		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, formatUserName(s.FirstName, s.Username), s.Wins))
+		sb.WriteString("\n")
 	}
 
 	return h.send(ctx, msg.Chat.ID, sb.String())
@@ -271,10 +296,10 @@ func (h *Handler) handleReset(ctx context.Context, msg *Message) error {
 	}
 
 	if rows == 0 {
-		return h.send(ctx, chatID, "No result to reset for today.")
+		return h.send(ctx, chatID, h.tr.Get(TrResetNoResult))
 	}
 
-	return h.send(ctx, chatID, "Today's result has been reset. You can run /roulette again!")
+	return h.send(ctx, chatID, h.tr.Get(TrResetSuccess))
 }
 
 func (h *Handler) handleParticipants(ctx context.Context, msg *Message) error {
@@ -284,11 +309,12 @@ func (h *Handler) handleParticipants(ctx context.Context, msg *Message) error {
 	}
 
 	if len(participants) == 0 {
-		return h.send(ctx, msg.Chat.ID, "No participants yet. Use /join to register!")
+		return h.send(ctx, msg.Chat.ID, h.tr.Get(TrNoParticipants))
 	}
 
 	var sb strings.Builder
-	sb.WriteString("<b>Participants</b>\n\n")
+	sb.WriteString(h.tr.Get(TrParticipantsHeader))
+	sb.WriteString("\n\n")
 	for i, p := range participants {
 		fmt.Fprintf(&sb, "%d. %s\n", i+1, formatUserName(p.FirstName, p.Username))
 	}
