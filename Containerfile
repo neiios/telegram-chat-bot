@@ -9,7 +9,7 @@ COPY . .
 RUN sqlc generate
 RUN CGO_ENABLED=0 go build -o /bot .
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12
 
 COPY --from=builder /bot /bot
 
