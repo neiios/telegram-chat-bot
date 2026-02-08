@@ -1,15 +1,20 @@
-*
+/*
 
-!.gitignore
+!/.gitignore
 
-!queries.sql
-!schema.sql
-!sqlc.yaml
+!/queries.sql
+!/schema.sql
+!/sqlc.yaml
 
-!*.go
-!go.mod
-!go.sum
+!/*.go
+!/go.mod
+!/go.sum
 
-!init-demo-data.sql
-!README.md
-!LICENSE
+!/README.md
+!/LICENSE
+
+!/Containerfile
+!/build.sh
+!/init-demo-data.sql
+!/.github
+!/compose.yaml

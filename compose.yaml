@@ -1,0 +1,15 @@
+services:
+  bot:
+    image: ghcr.io/neiios/telegram-chat-bot:latest
+    restart: unless-stopped
+    environment:
+      TELEGRAM_BOT_TOKEN: "your-bot-token"
+      DB_PATH: /data/bot.db
+      # ROLL_COMMAND: roll
+      # ADMIN_IDS: "123456789,987654321"
+      # CHAT_IDS: "123456789"
+    volumes:
+      - bot-data:/data
+
+volumes:
+  bot-data:
