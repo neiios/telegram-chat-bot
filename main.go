@@ -38,6 +38,18 @@ func main() {
 		}
 	}
 
+	var chatIDs []int64
+	if raw := os.Getenv("CHAT_IDS"); raw != "" {
+		for s := range strings.SplitSeq(raw, ",") {
+			s = strings.TrimSpace(s)
+			id, err := strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				log.Fatalf("Invalid CHAT_IDS value %q: %v", s, err)
+			}
+			chatIDs = append(chatIDs, id)
+		}
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -60,7 +72,7 @@ func main() {
 		log.Fatalf("Failed to load translations: %v", err)
 	}
 
-	handler := NewHandler(bot, storage, tr, me.Username, rollCmd, adminIDs)
+	handler := NewHandler(bot, storage, tr, me.Username, rollCmd, adminIDs, chatIDs)
 
 	var offset int64
 	for {

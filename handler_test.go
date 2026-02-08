@@ -71,7 +71,7 @@ func setup(t *testing.T) *testEnv {
 	}
 
 	sender := &fakeSender{}
-	handler := NewHandler(sender, storage, tr, "testbot", "roll", nil)
+	handler := NewHandler(sender, storage, tr, "testbot", "roll", nil, nil)
 	handler.todayFunc = func() string { return testDate }
 
 	return &testEnv{handler: handler, sender: sender, storage: storage}
@@ -451,7 +451,7 @@ func TestResetAsAdmin(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()
 
-	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", []int64{1})
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", []int64{1}, nil)
 	env.handler.todayFunc = func() string { return testDate }
 
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
@@ -479,7 +479,7 @@ func TestResetAsNonAdmin(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()
 
-	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", []int64{99})
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", []int64{99}, nil)
 	env.handler.todayFunc = func() string { return testDate }
 
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
@@ -519,6 +519,45 @@ func TestResetNothingToReset(t *testing.T) {
 
 	if got := env.sender.last().Text; !strings.Contains(got, "Nothing to reset") {
 		t.Errorf("expected nothing-to-reset message, got: %s", got)
+	}
+}
+
+func TestChatIDWhitelistAllowed(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", nil, []int64{100})
+	env.handler.todayFunc = func() string { return testDate }
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+
+	if len(env.sender.messages) != 1 {
+		t.Fatalf("expected 1 message for whitelisted chat, got %d", len(env.sender.messages))
+	}
+}
+
+func TestChatIDWhitelistBlocked(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", nil, []int64{200})
+	env.handler.todayFunc = func() string { return testDate }
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+
+	if len(env.sender.messages) != 0 {
+		t.Errorf("expected no reply for non-whitelisted chat, got %d messages", len(env.sender.messages))
+	}
+}
+
+func TestChatIDWhitelistEmpty(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+
+	if len(env.sender.messages) != 1 {
+		t.Fatalf("expected 1 message when no whitelist is set, got %d", len(env.sender.messages))
 	}
 }
 
@@ -597,7 +636,7 @@ func TestCustomRollCommand(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()
 
-	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "spin", nil)
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "spin", nil, nil)
 	env.handler.todayFunc = func() string { return testDate }
 
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))

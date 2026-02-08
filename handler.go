@@ -25,13 +25,18 @@ type Handler struct {
 	botName   string
 	rollCmd   string
 	adminIDs  map[int64]struct{}
+	chatIDs   map[int64]struct{}
 	todayFunc func() string
 }
 
-func NewHandler(bot MessageSender, storage *Storage, tr *Translator, botName, rollCmd string, adminIDs []int64) *Handler {
+func NewHandler(bot MessageSender, storage *Storage, tr *Translator, botName, rollCmd string, adminIDs, chatIDs []int64) *Handler {
 	admins := make(map[int64]struct{}, len(adminIDs))
 	for _, id := range adminIDs {
 		admins[id] = struct{}{}
+	}
+	chats := make(map[int64]struct{}, len(chatIDs))
+	for _, id := range chatIDs {
+		chats[id] = struct{}{}
 	}
 	return &Handler{
 		bot:       bot,
@@ -40,6 +45,7 @@ func NewHandler(bot MessageSender, storage *Storage, tr *Translator, botName, ro
 		botName:   botName,
 		rollCmd:   "/" + rollCmd,
 		adminIDs:  admins,
+		chatIDs:   chats,
 		todayFunc: today,
 	}
 }
@@ -50,6 +56,12 @@ func (h *Handler) HandleUpdate(ctx context.Context, update Update) {
 	}
 
 	msg := update.Message
+
+	if len(h.chatIDs) > 0 {
+		if _, ok := h.chatIDs[msg.Chat.ID]; !ok {
+			return
+		}
+	}
 	cmd := extractCommand(msg, h.botName)
 	if cmd == "" {
 		return

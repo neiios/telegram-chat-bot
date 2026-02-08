@@ -11,6 +11,7 @@ Each day, one random participant is selected as the winner.
 | `DB_PATH` | No | `bot.db` | Path to SQLite database file |
 | `ROLL_COMMAND` | No | `roll` | Command name to trigger the roulette (without `/`) |
 | `ADMIN_IDS` | No | _(empty)_ | Comma-separated Telegram user IDs allowed to use `/reset`. When empty, `/reset` is available to everyone. |
+| `CHAT_IDS` | No | _(empty)_ | Comma-separated Telegram chat IDs the bot is allowed to operate in. When empty, the bot responds in all chats. |
 
 ## Database Setup
 
