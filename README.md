@@ -10,6 +10,7 @@ Each day, one random participant is selected as the winner.
 | `TELEGRAM_BOT_TOKEN` | Yes | - | Bot token from BotFather |
 | `DB_PATH` | No | `bot.db` | Path to SQLite database file |
 | `ROLL_COMMAND` | No | `roll` | Command name to trigger the roulette (without `/`) |
+| `ADMIN_IDS` | No | _(empty)_ | Comma-separated Telegram user IDs allowed to use `/reset`. When empty, `/reset` is available to everyone. |
 
 ## Database Setup
 

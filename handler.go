@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"html"
 	"log"
 	"math/rand/v2"
 	"strconv"
@@ -105,14 +104,6 @@ func extractCommand(msg *Message, botName string) string {
 	return strings.ToLower(cmd)
 }
 
-func formatUserName(firstName, username string) string {
-	name := html.EscapeString(firstName)
-	if username != "" {
-		return fmt.Sprintf("%s (@%s)", name, html.EscapeString(username))
-	}
-	return name
-}
-
 func (h *Handler) send(ctx context.Context, chatID int64, text string) error {
 	return h.bot.SendMessage(ctx, SendMessageRequest{
 		ChatID:    chatID,
@@ -157,7 +148,7 @@ func (h *Handler) handleLeave(ctx context.Context, msg *Message) error {
 
 	var text string
 	if rows > 0 {
-		text = h.tr.Getf(TrLeaveSuccess, formatUserName(user.FirstName, user.Username))
+		text = h.tr.Getf(TrLeaveSuccess, user.FirstName)
 	} else {
 		text = h.tr.Get(TrLeaveNotInGame)
 	}
@@ -205,25 +196,25 @@ func (h *Handler) handleRoulette(ctx context.Context, msg *Message) error {
 		return h.showExistingResult(ctx, msg, existing)
 	}
 
-	winnerName := formatUserName(winner.FirstName, winner.Username)
+	winnerTag := fmt.Sprintf(`<a href="tg://user?id=%d"><b>%s</b></a>`, winner.UserID, winner.FirstName)
 
 	setID, err := h.storage.Queries.GetRandomMessageSetID(ctx)
 	if err != nil {
-		text := h.tr.Getf(TrFallbackWinner, "<b>"+winnerName+"</b>")
+		text := h.tr.Getf(TrFallbackWinner, winnerTag)
 		return h.send(ctx, chatID, text)
 	}
 
 	messages, err := h.storage.Queries.GetSetMessages(ctx, setID)
 	if err != nil {
 		log.Printf("Error fetching message set %d: %v", setID, err)
-		text := h.tr.Getf(TrFallbackWinner, "<b>"+winnerName+"</b>")
+		text := h.tr.Getf(TrFallbackWinner, winnerTag)
 		return h.send(ctx, chatID, text)
 	}
 
 	for i, body := range messages {
 		var text string
 		if i == len(messages)-1 {
-			text = fmt.Sprintf(body, "<b>"+winnerName+"</b>")
+			text = fmt.Sprintf(body, winnerTag)
 		} else {
 			text = body
 		}
@@ -251,7 +242,7 @@ func (h *Handler) showExistingResult(ctx context.Context, msg *Message, result d
 	} else if err != nil {
 		return err
 	} else {
-		name = formatUserName(p.FirstName, p.Username)
+		name = p.FirstName
 	}
 
 	text := h.tr.Getf(TrAlreadyPlayed, "<b>"+name+"</b>")
@@ -395,7 +386,7 @@ func (h *Handler) handleParticipants(ctx context.Context, msg *Message) error {
 	sb.WriteString(h.tr.Get(TrParticipantsHeader))
 	sb.WriteString("\n\n")
 	for i, p := range participants {
-		fmt.Fprintf(&sb, "%d. %s\n", i+1, formatUserName(p.FirstName, p.Username))
+		fmt.Fprintf(&sb, "%d. %s\n", i+1, p.FirstName)
 	}
 
 	return h.send(ctx, msg.Chat.ID, sb.String())
