@@ -14,27 +14,33 @@ import (
 	"telegram-chat-bot/db"
 )
 
-type Handler struct {
-	bot      *BotClient
-	storage  *Storage
-	tr       *Translator
-	botName  string
-	rollCmd  string
-	adminIDs map[int64]struct{}
+type MessageSender interface {
+	SendMessage(ctx context.Context, req SendMessageRequest) error
 }
 
-func NewHandler(bot *BotClient, storage *Storage, tr *Translator, botName, rollCmd string, adminIDs []int64) *Handler {
+type Handler struct {
+	bot       MessageSender
+	storage   *Storage
+	tr        *Translator
+	botName   string
+	rollCmd   string
+	adminIDs  map[int64]struct{}
+	todayFunc func() string
+}
+
+func NewHandler(bot MessageSender, storage *Storage, tr *Translator, botName, rollCmd string, adminIDs []int64) *Handler {
 	admins := make(map[int64]struct{}, len(adminIDs))
 	for _, id := range adminIDs {
 		admins[id] = struct{}{}
 	}
 	return &Handler{
-		bot:      bot,
-		storage:  storage,
-		tr:       tr,
-		botName:  botName,
-		rollCmd:  "/" + rollCmd,
-		adminIDs: admins,
+		bot:       bot,
+		storage:   storage,
+		tr:        tr,
+		botName:   botName,
+		rollCmd:   "/" + rollCmd,
+		adminIDs:  admins,
+		todayFunc: today,
 	}
 }
 
@@ -158,7 +164,7 @@ func (h *Handler) handleLeave(ctx context.Context, msg *Message) error {
 
 func (h *Handler) handleRoulette(ctx context.Context, msg *Message) error {
 	chatID := msg.Chat.ID
-	date := today()
+	date := h.todayFunc()
 
 	existing, err := h.storage.Queries.GetTodayResult(ctx, db.GetTodayResultParams{
 		ChatID:     chatID,
@@ -268,7 +274,7 @@ func extractArgs(msg *Message) string {
 func (h *Handler) todayWinnerID(ctx context.Context, chatID int64) int64 {
 	result, err := h.storage.Queries.GetTodayResult(ctx, db.GetTodayResultParams{
 		ChatID:     chatID,
-		PlayedDate: today(),
+		PlayedDate: h.todayFunc(),
 	})
 	if err != nil {
 		return 0
@@ -357,7 +363,7 @@ func (h *Handler) handleReset(ctx context.Context, msg *Message) error {
 	}
 
 	chatID := msg.Chat.ID
-	date := today()
+	date := h.todayFunc()
 
 	result, err := h.storage.Queries.DeleteTodayResult(ctx, db.DeleteTodayResultParams{
 		ChatID:     chatID,
