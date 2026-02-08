@@ -292,9 +292,9 @@ func (h *Handler) handleStats(ctx context.Context, msg *Message, arg string) err
 	sb.WriteString(h.tr.Get(TrStatsHeader))
 	sb.WriteString("\n\n")
 	for i, s := range stats {
-		name := formatUserName(s.FirstName, s.Username)
+		name := s.FirstName
 		if s.UserID == winnerID {
-			name = "👑 " + name
+			name = "👑 " + s.FirstName
 		}
 		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, name, s.Wins))
 		sb.WriteString("\n")
@@ -331,9 +331,9 @@ func (h *Handler) handleStatsByYear(ctx context.Context, msg *Message, arg strin
 	sb.WriteString(h.tr.Getf(TrStatsYearHeader, year))
 	sb.WriteString("\n\n")
 	for i, s := range stats {
-		name := formatUserName(s.FirstName, s.Username)
+		name := s.FirstName
 		if s.UserID == winnerID {
-			name = "👑 " + name
+			name = "👑 " + s.FirstName
 		}
 		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, name, s.Wins))
 		sb.WriteString("\n")
