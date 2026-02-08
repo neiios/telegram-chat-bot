@@ -102,7 +102,7 @@ func extractCommand(msg *Message, botName string) string {
 func formatUserName(firstName, username string) string {
 	name := html.EscapeString(firstName)
 	if username != "" {
-		return fmt.Sprintf("@%s", html.EscapeString(username))
+		return fmt.Sprintf("%s (@%s)", name, html.EscapeString(username))
 	}
 	return name
 }
@@ -116,7 +116,7 @@ func (h *Handler) send(ctx context.Context, chatID int64, text string) error {
 }
 
 func today() string {
-	return time.Now().UTC().Format("2011-11-11")
+	return time.Now().UTC().Format("2006-01-02")
 }
 
 func (h *Handler) handleJoin(ctx context.Context, msg *Message) error {
@@ -261,6 +261,17 @@ func extractArgs(msg *Message) string {
 	return strings.TrimSpace(string(rest))
 }
 
+func (h *Handler) todayWinnerID(ctx context.Context, chatID int64) int64 {
+	result, err := h.storage.Queries.GetTodayResult(ctx, db.GetTodayResultParams{
+		ChatID:     chatID,
+		PlayedDate: today(),
+	})
+	if err != nil {
+		return 0
+	}
+	return result.UserID
+}
+
 func (h *Handler) handleStats(ctx context.Context, msg *Message, arg string) error {
 	if arg != "" {
 		return h.handleStatsByYear(ctx, msg, arg)
@@ -275,11 +286,17 @@ func (h *Handler) handleStats(ctx context.Context, msg *Message, arg string) err
 		return h.send(ctx, msg.Chat.ID, h.tr.Get(TrNoParticipants))
 	}
 
+	winnerID := h.todayWinnerID(ctx, msg.Chat.ID)
+
 	var sb strings.Builder
 	sb.WriteString(h.tr.Get(TrStatsHeader))
 	sb.WriteString("\n\n")
 	for i, s := range stats {
-		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, formatUserName(s.FirstName, s.Username), s.Wins))
+		name := formatUserName(s.FirstName, s.Username)
+		if s.UserID == winnerID {
+			name = "👑 " + name
+		}
+		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, name, s.Wins))
 		sb.WriteString("\n")
 	}
 
@@ -308,11 +325,17 @@ func (h *Handler) handleStatsByYear(ctx context.Context, msg *Message, arg strin
 		return h.send(ctx, msg.Chat.ID, h.tr.Getf(TrStatsNoResults, year))
 	}
 
+	winnerID := h.todayWinnerID(ctx, msg.Chat.ID)
+
 	var sb strings.Builder
 	sb.WriteString(h.tr.Getf(TrStatsYearHeader, year))
 	sb.WriteString("\n\n")
 	for i, s := range stats {
-		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, formatUserName(s.FirstName, s.Username), s.Wins))
+		name := formatUserName(s.FirstName, s.Username)
+		if s.UserID == winnerID {
+			name = "👑 " + name
+		}
+		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, name, s.Wins))
 		sb.WriteString("\n")
 	}
 
