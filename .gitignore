@@ -16,4 +16,4 @@
 !/Containerfile
 !/init-demo-data.sql
 !/.github
-!/compose.yaml
+!/deploy

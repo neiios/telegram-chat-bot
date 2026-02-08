@@ -1,0 +1,18 @@
+[Unit]
+Description=Telegram Chat Bot
+
+[Container]
+Image=ghcr.io/neiios/telegram-chat-bot:latest
+AutoUpdate=registry
+Volume=bot-data:/data
+Environment=TELEGRAM_BOT_TOKEN=your-bot-token
+Environment=DB_PATH=/data/bot.db
+# Environment=ROLL_COMMAND=roll
+# Environment=ADMIN_IDS=123456789,987654321
+# Environment=CHAT_IDS=123456789
+
+[Service]
+Restart=unless-stopped
+
+[Install]
+WantedBy=default.target
