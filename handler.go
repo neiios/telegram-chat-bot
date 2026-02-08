@@ -29,7 +29,7 @@ type Handler struct {
 	todayFunc func() string
 }
 
-func NewHandler(bot MessageSender, storage *Storage, tr *Translator, botName, rollCmd string, adminIDs, chatIDs []int64) *Handler {
+func NewHandler(bot MessageSender, storage *Storage, tr *Translator, botName, rollCmd string, adminIDs, chatIDs []int64, loc *time.Location) *Handler {
 	admins := make(map[int64]struct{}, len(adminIDs))
 	for _, id := range adminIDs {
 		admins[id] = struct{}{}
@@ -46,7 +46,7 @@ func NewHandler(bot MessageSender, storage *Storage, tr *Translator, botName, ro
 		rollCmd:   "/" + rollCmd,
 		adminIDs:  admins,
 		chatIDs:   chats,
-		todayFunc: today,
+		todayFunc: func() string { return time.Now().In(loc).Format("2006-01-02") },
 	}
 }
 
@@ -129,10 +129,6 @@ func (h *Handler) send(ctx context.Context, chatID int64, text string) error {
 		Text:      text,
 		ParseMode: "HTML",
 	})
-}
-
-func today() string {
-	return time.Now().UTC().Format("2006-01-02")
 }
 
 func (h *Handler) handleJoin(ctx context.Context, msg *Message) error {

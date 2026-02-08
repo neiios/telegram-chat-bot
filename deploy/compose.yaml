@@ -5,6 +5,7 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: "your-bot-token"
       DB_PATH: /data/bot.db
+      # TZ: Europe/London
       # ROLL_COMMAND: roll
       # ADMIN_IDS: "123456789,987654321"
       # CHAT_IDS: "123456789"

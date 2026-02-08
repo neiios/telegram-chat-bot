@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"telegram-chat-bot/db"
 )
@@ -71,7 +72,7 @@ func setup(t *testing.T) *testEnv {
 	}
 
 	sender := &fakeSender{}
-	handler := NewHandler(sender, storage, tr, "testbot", "roll", nil, nil)
+	handler := NewHandler(sender, storage, tr, "testbot", "roll", nil, nil, time.UTC)
 	handler.todayFunc = func() string { return testDate }
 
 	return &testEnv{handler: handler, sender: sender, storage: storage}
@@ -451,7 +452,7 @@ func TestResetAsAdmin(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()
 
-	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", []int64{1}, nil)
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", []int64{1}, nil, time.UTC)
 	env.handler.todayFunc = func() string { return testDate }
 
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
@@ -479,7 +480,7 @@ func TestResetAsNonAdmin(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()
 
-	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", []int64{99}, nil)
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", []int64{99}, nil, time.UTC)
 	env.handler.todayFunc = func() string { return testDate }
 
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
@@ -526,7 +527,7 @@ func TestChatIDWhitelistAllowed(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()
 
-	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", nil, []int64{100})
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", nil, []int64{100}, time.UTC)
 	env.handler.todayFunc = func() string { return testDate }
 
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
@@ -540,7 +541,7 @@ func TestChatIDWhitelistBlocked(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()
 
-	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", nil, []int64{200})
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "roll", nil, []int64{200}, time.UTC)
 	env.handler.todayFunc = func() string { return testDate }
 
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
@@ -636,7 +637,7 @@ func TestCustomRollCommand(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()
 
-	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "spin", nil, nil)
+	env.handler = NewHandler(env.sender, env.storage, env.handler.tr, "testbot", "spin", nil, nil, time.UTC)
 	env.handler.todayFunc = func() string { return testDate }
 
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))

@@ -7,12 +7,13 @@ AutoUpdate=registry
 Volume=bot-data:/data
 Environment=TELEGRAM_BOT_TOKEN=your-bot-token
 Environment=DB_PATH=/data/bot.db
+# Environment=TZ=Europe/London
 # Environment=ROLL_COMMAND=roll
 # Environment=ADMIN_IDS=123456789,987654321
 # Environment=CHAT_IDS=123456789
 
 [Service]
-Restart=unless-stopped
+Restart=always
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target default.target

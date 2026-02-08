@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -35,6 +36,15 @@ func main() {
 				log.Fatalf("Invalid ADMIN_IDS value %q: %v", s, err)
 			}
 			adminIDs = append(adminIDs, id)
+		}
+	}
+
+	loc := time.UTC
+	if tz := os.Getenv("TZ"); tz != "" {
+		var err error
+		loc, err = time.LoadLocation(tz)
+		if err != nil {
+			log.Fatalf("Invalid TZ value %q: %v", tz, err)
 		}
 	}
 
@@ -72,7 +82,7 @@ func main() {
 		log.Fatalf("Failed to load translations: %v", err)
 	}
 
-	handler := NewHandler(bot, storage, tr, me.Username, rollCmd, adminIDs, chatIDs)
+	handler := NewHandler(bot, storage, tr, me.Username, rollCmd, adminIDs, chatIDs, loc)
 
 	var offset int64
 	for {
