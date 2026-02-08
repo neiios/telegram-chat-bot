@@ -14,6 +14,5 @@
 !/LICENSE
 
 !/Containerfile
-!/init-demo-data.sql
 !/.github
 !/deploy
