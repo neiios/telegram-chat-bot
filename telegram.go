@@ -35,11 +35,11 @@ type MessageEntity struct {
 }
 
 type Message struct {
-	MessageID int64            `json:"message_id"`
-	From      *User            `json:"from,omitempty"`
-	Chat      Chat             `json:"chat"`
-	Text      string           `json:"text,omitempty"`
-	Entities  []MessageEntity  `json:"entities,omitempty"`
+	MessageID int64           `json:"message_id"`
+	From      *User           `json:"from,omitempty"`
+	Chat      Chat            `json:"chat"`
+	Text      string          `json:"text,omitempty"`
+	Entities  []MessageEntity `json:"entities,omitempty"`
 }
 
 type Update struct {

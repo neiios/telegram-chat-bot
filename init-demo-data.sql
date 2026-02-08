@@ -6,6 +6,9 @@ INSERT OR IGNORE INTO translations (key, value) VALUES ('no_participants', 'No p
 INSERT OR IGNORE INTO translations (key, value) VALUES ('already_played', 'The wheel has already been spun today! Today''s winner is %s!');
 INSERT OR IGNORE INTO translations (key, value) VALUES ('fallback_winner', 'And the winner is... %s!');
 INSERT OR IGNORE INTO translations (key, value) VALUES ('stats_header', '<b>Hall of Fame:</b>');
+INSERT OR IGNORE INTO translations (key, value) VALUES ('stats_year_header', '<b>Hall of Fame (%d):</b>');
+INSERT OR IGNORE INTO translations (key, value) VALUES ('stats_invalid_year', 'Invalid year: %s');
+INSERT OR IGNORE INTO translations (key, value) VALUES ('stats_no_results', 'No results for %d.');
 INSERT OR IGNORE INTO translations (key, value) VALUES ('stats_line', '%d. %s — %d win(s)');
 INSERT OR IGNORE INTO translations (key, value) VALUES ('participants_header', '<b>Players in the roulette:</b>');
 INSERT OR IGNORE INTO translations (key, value) VALUES ('reset_no_result', 'Nothing to reset. The wheel hasn''t been spun yet.');

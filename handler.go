@@ -8,6 +8,7 @@ import (
 	"html"
 	"log"
 	"math/rand/v2"
+	"strconv"
 	"strings"
 	"time"
 
@@ -50,9 +51,14 @@ func (h *Handler) HandleUpdate(ctx context.Context, update Update) {
 	case "/leave":
 		err = h.handleLeave(ctx, msg)
 	case h.rollCmd:
-		err = h.handleRoulette(ctx, msg)
+		args := extractArgs(msg)
+		if sub, ok := strings.CutPrefix(args, "stats"); ok && (sub == "" || sub[0] == ' ') {
+			err = h.handleStats(ctx, msg, strings.TrimSpace(sub))
+		} else {
+			err = h.handleRoulette(ctx, msg)
+		}
 	case "/stats":
-		err = h.handleStats(ctx, msg)
+		err = h.handleStats(ctx, msg, extractArgs(msg))
 	case "/participants":
 		err = h.handleParticipants(ctx, msg)
 	case "/reset":
@@ -99,17 +105,6 @@ func formatUserName(firstName, username string) string {
 		return fmt.Sprintf("@%s", html.EscapeString(username))
 	}
 	return name
-}
-
-func (h *Handler) reply(ctx context.Context, msg *Message, text string) error {
-	return h.bot.SendMessage(ctx, SendMessageRequest{
-		ChatID:    msg.Chat.ID,
-		Text:      text,
-		ParseMode: "HTML",
-		ReplyParameters: &ReplyParameters{
-			MessageID: msg.MessageID,
-		},
-	})
 }
 
 func (h *Handler) send(ctx context.Context, chatID int64, text string) error {
@@ -257,18 +252,64 @@ func (h *Handler) showExistingResult(ctx context.Context, msg *Message, result d
 	return h.send(ctx, msg.Chat.ID, text)
 }
 
-func (h *Handler) handleStats(ctx context.Context, msg *Message) error {
+func extractArgs(msg *Message) string {
+	if len(msg.Entities) == 0 {
+		return ""
+	}
+	runes := []rune(msg.Text)
+	rest := runes[msg.Entities[0].Length:]
+	return strings.TrimSpace(string(rest))
+}
+
+func (h *Handler) handleStats(ctx context.Context, msg *Message, arg string) error {
+	if arg != "" {
+		return h.handleStatsByYear(ctx, msg, arg)
+	}
+
 	stats, err := h.storage.Queries.GetStats(ctx, msg.Chat.ID)
 	if err != nil {
 		return err
 	}
 
 	if len(stats) == 0 {
-		return h.reply(ctx, msg, h.tr.Get(TrNoParticipants))
+		return h.send(ctx, msg.Chat.ID, h.tr.Get(TrNoParticipants))
 	}
 
 	var sb strings.Builder
 	sb.WriteString(h.tr.Get(TrStatsHeader))
+	sb.WriteString("\n\n")
+	for i, s := range stats {
+		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, formatUserName(s.FirstName, s.Username), s.Wins))
+		sb.WriteString("\n")
+	}
+
+	return h.send(ctx, msg.Chat.ID, sb.String())
+}
+
+func (h *Handler) handleStatsByYear(ctx context.Context, msg *Message, arg string) error {
+	year, err := strconv.Atoi(arg)
+	if err != nil || year < 2000 || year > 2100 {
+		return h.send(ctx, msg.Chat.ID, h.tr.Getf(TrStatsInvalidYear, arg))
+	}
+
+	from := fmt.Sprintf("%d-01-01", year)
+	to := fmt.Sprintf("%d-01-01", year+1)
+
+	stats, err := h.storage.Queries.GetStatsByYear(ctx, db.GetStatsByYearParams{
+		ChatID:       msg.Chat.ID,
+		PlayedDate:   from,
+		PlayedDate_2: to,
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(stats) == 0 {
+		return h.send(ctx, msg.Chat.ID, h.tr.Getf(TrStatsNoResults, year))
+	}
+
+	var sb strings.Builder
+	sb.WriteString(h.tr.Getf(TrStatsYearHeader, year))
 	sb.WriteString("\n\n")
 	for i, s := range stats {
 		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, formatUserName(s.FirstName, s.Username), s.Wins))

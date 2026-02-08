@@ -31,6 +31,14 @@ WHERE p.chat_id = ?
 GROUP BY p.user_id, p.first_name, p.username
 ORDER BY wins DESC, p.first_name;
 
+-- name: GetStatsByYear :many
+SELECT p.user_id, p.first_name, p.username, COUNT(r.id) AS wins
+FROM participants p
+JOIN results r ON p.chat_id = r.chat_id AND p.user_id = r.user_id
+WHERE p.chat_id = ? AND r.played_date >= ? AND r.played_date < ?
+GROUP BY p.user_id, p.first_name, p.username
+ORDER BY wins DESC, p.first_name;
+
 -- name: GetParticipantByID :one
 SELECT first_name, username
 FROM participants
