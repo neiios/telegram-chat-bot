@@ -59,14 +59,12 @@ type SendMessageRequest struct {
 }
 
 type BotClient struct {
-	token      string
 	baseURL    string
 	httpClient *http.Client
 }
 
 func NewBotClient(token string) *BotClient {
 	return &BotClient{
-		token:   token,
 		baseURL: fmt.Sprintf("https://api.telegram.org/bot%s", token),
 		httpClient: &http.Client{
 			Timeout: 60 * time.Second,

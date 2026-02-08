@@ -15,7 +15,7 @@ import (
 var ddl string
 
 type Storage struct {
-	DB      *sql.DB
+	db      *sql.DB
 	Queries *db.Queries
 }
 
@@ -36,11 +36,11 @@ func NewStorage(ctx context.Context, dbPath string) (*Storage, error) {
 	}
 
 	return &Storage{
-		DB:      sqlDB,
+		db:      sqlDB,
 		Queries: db.New(sqlDB),
 	}, nil
 }
 
 func (s *Storage) Close() error {
-	return s.DB.Close()
+	return s.db.Close()
 }

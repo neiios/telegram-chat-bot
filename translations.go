@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
 
 	"telegram-chat-bot/db"
 )
@@ -28,28 +27,22 @@ const (
 )
 
 type Translator struct {
-	mu           sync.RWMutex
 	translations map[string]string
 }
 
 func NewTranslator(ctx context.Context, queries *db.Queries) (*Translator, error) {
-	t := &Translator{
-		translations: make(map[string]string),
-	}
-	if err := t.Load(ctx, queries); err != nil {
+	t := &Translator{}
+	if err := t.load(ctx, queries); err != nil {
 		return nil, err
 	}
 	return t, nil
 }
 
-func (t *Translator) Load(ctx context.Context, queries *db.Queries) error {
+func (t *Translator) load(ctx context.Context, queries *db.Queries) error {
 	rows, err := queries.GetAllTranslations(ctx)
 	if err != nil {
 		return fmt.Errorf("load translations: %w", err)
 	}
-
-	t.mu.Lock()
-	defer t.mu.Unlock()
 
 	t.translations = make(map[string]string, len(rows))
 	for _, row := range rows {
@@ -61,9 +54,6 @@ func (t *Translator) Load(ctx context.Context, queries *db.Queries) error {
 }
 
 func (t *Translator) Get(key string) string {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-
 	if val, ok := t.translations[key]; ok {
 		return val
 	}

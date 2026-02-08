@@ -50,24 +50,26 @@ func (h *Handler) HandleUpdate(ctx context.Context, update Update) {
 	}
 
 	var err error
-	switch {
-	case cmd == "/join":
-		err = h.handleJoin(ctx, msg)
-	case cmd == "/leave":
-		err = h.handleLeave(ctx, msg)
-	case strings.HasPrefix(cmd, h.rollCmd):
+	if strings.HasPrefix(cmd, h.rollCmd) {
 		args := extractArgs(msg)
 		if sub, ok := strings.CutPrefix(args, "stats"); ok && (sub == "" || sub[0] == ' ') {
 			err = h.handleStats(ctx, msg, strings.TrimSpace(sub))
 		} else {
 			err = h.handleRoulette(ctx, msg)
 		}
-	case cmd == "/stats":
-		err = h.handleStats(ctx, msg, extractArgs(msg))
-	case cmd == "/participants":
-		err = h.handleParticipants(ctx, msg)
-	case cmd == "/reset":
-		err = h.handleReset(ctx, msg)
+	} else {
+		switch cmd {
+		case "/join":
+			err = h.handleJoin(ctx, msg)
+		case "/leave":
+			err = h.handleLeave(ctx, msg)
+		case "/stats":
+			err = h.handleStats(ctx, msg, extractArgs(msg))
+		case "/participants":
+			err = h.handleParticipants(ctx, msg)
+		case "/reset":
+			err = h.handleReset(ctx, msg)
+		}
 	}
 
 	if err != nil {
@@ -93,12 +95,11 @@ func extractCommand(msg *Message, botName string) string {
 	cmd := string(runes[:entity.Length])
 
 	// Strip @botname suffix
-	if i := strings.Index(cmd, "@"); i != -1 {
-		mention := cmd[i+1:]
+	if base, mention, ok := strings.Cut(cmd, "@"); ok {
 		if !strings.EqualFold(mention, botName) {
 			return "" // Command for a different bot
 		}
-		cmd = cmd[:i]
+		cmd = base
 	}
 
 	return strings.ToLower(cmd)
@@ -211,23 +212,29 @@ func (h *Handler) handleRoulette(ctx context.Context, msg *Message) error {
 		return h.send(ctx, chatID, text)
 	}
 
+	h.sendAnnouncement(ctx, chatID, messages, winnerTag)
+
+	return nil
+}
+
+func (h *Handler) sendAnnouncement(ctx context.Context, chatID int64, messages []string, winnerTag string) {
 	for i, body := range messages {
-		var text string
+		text := body
 		if i == len(messages)-1 {
 			text = fmt.Sprintf(body, winnerTag)
-		} else {
-			text = body
 		}
 
 		if err := h.send(ctx, chatID, text); err != nil {
 			log.Printf("Error sending sequence message: %v", err)
 		}
 		if i < len(messages)-1 {
-			time.Sleep(2 * time.Second)
+			select {
+			case <-time.After(2 * time.Second):
+			case <-ctx.Done():
+				return
+			}
 		}
 	}
-
-	return nil
 }
 
 func (h *Handler) showExistingResult(ctx context.Context, msg *Message, result db.GetTodayResultRow) error {
