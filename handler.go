@@ -16,20 +16,26 @@ import (
 )
 
 type Handler struct {
-	bot     *BotClient
-	storage *Storage
-	tr      *Translator
-	botName string
-	rollCmd string
+	bot      *BotClient
+	storage  *Storage
+	tr       *Translator
+	botName  string
+	rollCmd  string
+	adminIDs map[int64]struct{}
 }
 
-func NewHandler(bot *BotClient, storage *Storage, tr *Translator, botName, rollCmd string) *Handler {
+func NewHandler(bot *BotClient, storage *Storage, tr *Translator, botName, rollCmd string, adminIDs []int64) *Handler {
+	admins := make(map[int64]struct{}, len(adminIDs))
+	for _, id := range adminIDs {
+		admins[id] = struct{}{}
+	}
 	return &Handler{
-		bot:     bot,
-		storage: storage,
-		tr:      tr,
-		botName: botName,
-		rollCmd: "/" + rollCmd,
+		bot:      bot,
+		storage:  storage,
+		tr:       tr,
+		botName:  botName,
+		rollCmd:  "/" + rollCmd,
+		adminIDs: admins,
 	}
 }
 
@@ -45,23 +51,23 @@ func (h *Handler) HandleUpdate(ctx context.Context, update Update) {
 	}
 
 	var err error
-	switch cmd {
-	case "/join":
+	switch {
+	case cmd == "/join":
 		err = h.handleJoin(ctx, msg)
-	case "/leave":
+	case cmd == "/leave":
 		err = h.handleLeave(ctx, msg)
-	case h.rollCmd:
+	case strings.HasPrefix(cmd, h.rollCmd):
 		args := extractArgs(msg)
 		if sub, ok := strings.CutPrefix(args, "stats"); ok && (sub == "" || sub[0] == ' ') {
 			err = h.handleStats(ctx, msg, strings.TrimSpace(sub))
 		} else {
 			err = h.handleRoulette(ctx, msg)
 		}
-	case "/stats":
+	case cmd == "/stats":
 		err = h.handleStats(ctx, msg, extractArgs(msg))
-	case "/participants":
+	case cmd == "/participants":
 		err = h.handleParticipants(ctx, msg)
-	case "/reset":
+	case cmd == "/reset":
 		err = h.handleReset(ctx, msg)
 	}
 
@@ -342,7 +348,16 @@ func (h *Handler) handleStatsByYear(ctx context.Context, msg *Message, arg strin
 	return h.send(ctx, msg.Chat.ID, sb.String())
 }
 
+func (h *Handler) isAdmin(userID int64) bool {
+	_, ok := h.adminIDs[userID]
+	return ok
+}
+
 func (h *Handler) handleReset(ctx context.Context, msg *Message) error {
+	if len(h.adminIDs) > 0 && !h.isAdmin(msg.From.ID) {
+		return nil
+	}
+
 	chatID := msg.Chat.ID
 	date := today()
 

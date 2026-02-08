@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -22,6 +24,18 @@ func main() {
 	rollCmd := os.Getenv("ROLL_COMMAND")
 	if rollCmd == "" {
 		rollCmd = "roll"
+	}
+
+	var adminIDs []int64
+	if raw := os.Getenv("ADMIN_IDS"); raw != "" {
+		for s := range strings.SplitSeq(raw, ",") {
+			s = strings.TrimSpace(s)
+			id, err := strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				log.Fatalf("Invalid ADMIN_IDS value %q: %v", s, err)
+			}
+			adminIDs = append(adminIDs, id)
+		}
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -46,7 +60,7 @@ func main() {
 		log.Fatalf("Failed to load translations: %v", err)
 	}
 
-	handler := NewHandler(bot, storage, tr, me.Username, rollCmd)
+	handler := NewHandler(bot, storage, tr, me.Username, rollCmd, adminIDs)
 
 	var offset int64
 	for {
