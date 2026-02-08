@@ -8,9 +8,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
-      - run: ./build.sh
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build image
+        run: docker build -f Containerfile -t "$IMAGE:$GITHUB_SHA" -t "$IMAGE:latest" .
+
+      - name: Push image
+        run: docker push "$IMAGE" --all-tags
