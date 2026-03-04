@@ -71,9 +71,9 @@ func (h *Handler) HandleUpdate(ctx context.Context, update Update) {
 	if strings.HasPrefix(cmd, h.rollCmd) {
 		// Support both "/roll stats" and "/rollstats"
 		combined := strings.TrimSpace(cmd[len(h.rollCmd):] + " " + extractArgs(msg))
-		if sub, ok := strings.CutPrefix(combined, "stats"); ok && (sub == "" || sub[0] == ' ') {
+		if sub, ok := strings.CutPrefix(combined, "stats"); ok {
 			err = h.handleStats(ctx, msg, strings.TrimSpace(sub))
-		} else if cmd == h.rollCmd {
+		} else {
 			err = h.handleRoulette(ctx, msg)
 		}
 	} else {

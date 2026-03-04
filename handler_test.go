@@ -513,6 +513,50 @@ func TestStatsViaRollCommandNoSpaceWithYear(t *testing.T) {
 	}
 }
 
+func TestRollWithSuffixFallsBackToRoulette(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	env.sender.reset()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/rollxyz"))
+
+	if len(env.sender.messages) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(env.sender.messages))
+	}
+	if got := env.sender.last().Text; !strings.Contains(got, "winner") || !strings.Contains(got, "Alice") {
+		t.Errorf("expected roulette winner message with Alice, got: %s", got)
+	}
+}
+
+func TestRollstatsSuffixFallsBackToStats(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
+		ChatID: 100, UserID: 1, PlayedDate: "2026-06-01",
+	})
+	if err != nil {
+		t.Fatalf("SaveResult: %v", err)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/rollstatsall"))
+
+	if len(env.sender.messages) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(env.sender.messages))
+	}
+	got := env.sender.last().Text
+	if !strings.Contains(got, "Hall of Fame") {
+		t.Errorf("expected stats header, got: %s", got)
+	}
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("expected Alice in stats, got: %s", got)
+	}
+}
+
 func TestResetAsAdmin(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()
