@@ -316,7 +316,7 @@ func TestStats(t *testing.T) {
 	env.handler.HandleUpdate(ctx, commandMsg(100, 2, "Bob", "/join"))
 
 	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
-		ChatID: 100, UserID: 1, PlayedDate: "2025-06-01",
+		ChatID: 100, UserID: 1, PlayedDate: "2026-06-01",
 	})
 	if err != nil {
 		t.Fatalf("SaveResult: %v", err)
@@ -324,6 +324,35 @@ func TestStats(t *testing.T) {
 
 	env.sender.reset()
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats"))
+
+	if len(env.sender.messages) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(env.sender.messages))
+	}
+	got := env.sender.last().Text
+	if !strings.Contains(got, "2026") {
+		t.Errorf("expected year in header, got: %s", got)
+	}
+	if !strings.Contains(got, "Alice") || !strings.Contains(got, "1 win(s)") {
+		t.Errorf("expected Alice with 1 win, got: %s", got)
+	}
+}
+
+func TestStatsAll(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	env.handler.HandleUpdate(ctx, commandMsg(100, 2, "Bob", "/join"))
+
+	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
+		ChatID: 100, UserID: 1, PlayedDate: "2025-06-01",
+	})
+	if err != nil {
+		t.Fatalf("SaveResult: %v", err)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats all"))
 
 	if len(env.sender.messages) != 1 {
 		t.Fatalf("expected 1 message, got %d", len(env.sender.messages))
@@ -422,8 +451,8 @@ func TestStatsViaRollCommand(t *testing.T) {
 	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/roll stats"))
 
 	got := env.sender.last().Text
-	if !strings.Contains(got, "Hall of Fame") {
-		t.Errorf("expected stats via /roll stats, got: %s", got)
+	if !strings.Contains(got, "2026") {
+		t.Errorf("expected year-filtered stats via /roll stats, got: %s", got)
 	}
 }
 

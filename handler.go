@@ -291,10 +291,16 @@ func (h *Handler) todayWinnerID(ctx context.Context, chatID int64) int64 {
 }
 
 func (h *Handler) handleStats(ctx context.Context, msg *Message, arg string) error {
-	if arg != "" {
-		return h.handleStatsByYear(ctx, msg, arg)
+	if arg == "" {
+		arg = h.todayFunc()[:4]
 	}
+	if arg == "all" {
+		return h.handleStatsAll(ctx, msg)
+	}
+	return h.handleStatsByYear(ctx, msg, arg)
+}
 
+func (h *Handler) handleStatsAll(ctx context.Context, msg *Message) error {
 	stats, err := h.storage.Queries.GetStats(ctx, msg.Chat.ID)
 	if err != nil {
 		return err
