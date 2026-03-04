@@ -549,8 +549,8 @@ func TestRollstatsSuffixFallsBackToStats(t *testing.T) {
 		t.Fatalf("expected 1 message, got %d", len(env.sender.messages))
 	}
 	got := env.sender.last().Text
-	if !strings.Contains(got, "Hall of Fame") {
-		t.Errorf("expected stats header, got: %s", got)
+	if !strings.Contains(got, "2026") {
+		t.Errorf("expected current-year stats, got: %s", got)
 	}
 	if !strings.Contains(got, "Alice") {
 		t.Errorf("expected Alice in stats, got: %s", got)
