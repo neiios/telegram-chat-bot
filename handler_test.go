@@ -477,6 +477,42 @@ func TestStatsViaRollCommandWithYear(t *testing.T) {
 	}
 }
 
+func TestStatsViaRollCommandNoSpace(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	env.sender.reset()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/rollstats"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "2026") {
+		t.Errorf("expected year-filtered stats via /rollstats, got: %s", got)
+	}
+}
+
+func TestStatsViaRollCommandNoSpaceWithYear(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
+		ChatID: 100, UserID: 1, PlayedDate: "2025-03-01",
+	})
+	if err != nil {
+		t.Fatalf("SaveResult: %v", err)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/rollstats 2025"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "2025") || !strings.Contains(got, "Alice") {
+		t.Errorf("expected yearly stats via /rollstats 2025, got: %s", got)
+	}
+}
+
 func TestResetAsAdmin(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()

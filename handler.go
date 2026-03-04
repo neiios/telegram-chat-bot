@@ -69,10 +69,11 @@ func (h *Handler) HandleUpdate(ctx context.Context, update Update) {
 
 	var err error
 	if strings.HasPrefix(cmd, h.rollCmd) {
-		args := extractArgs(msg)
-		if sub, ok := strings.CutPrefix(args, "stats"); ok && (sub == "" || sub[0] == ' ') {
+		// Support both "/roll stats" and "/rollstats"
+		combined := strings.TrimSpace(cmd[len(h.rollCmd):] + " " + extractArgs(msg))
+		if sub, ok := strings.CutPrefix(combined, "stats"); ok && (sub == "" || sub[0] == ' ') {
 			err = h.handleStats(ctx, msg, strings.TrimSpace(sub))
-		} else {
+		} else if cmd == h.rollCmd {
 			err = h.handleRoulette(ctx, msg)
 		}
 	} else {
