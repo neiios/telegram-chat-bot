@@ -16,3 +16,6 @@
 !/Containerfile
 !/.github
 !/deploy
+
+!/*.nix
+!/flake.lock
