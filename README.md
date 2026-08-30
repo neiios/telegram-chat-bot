@@ -40,6 +40,21 @@ All bot messages are stored in the `translations` table and can be customized di
 TELEGRAM_BOT_TOKEN="your-bot-token" ./telegram-chat-bot
 ```
 
+### Nix
+
+The repository is a flake:
+
+```bash
+# Run directly
+TELEGRAM_BOT_TOKEN="your-bot-token" nix run github:neiios/telegram-chat-bot
+
+# Or build it
+nix build github:neiios/telegram-chat-bot
+```
+
+To use it from another flake, add this repository as an input and use either
+`packages.<system>.telegram-chat-bot` or `overlays.default`.
+
 ### Docker Compose
 
 A `deploy/compose.yaml` is provided. 
@@ -67,6 +82,17 @@ The bot automatically creates the database schema on first run. To seed translat
 ```
 
 ## Development
+
+### Development shell
+
+`nix develop` provides Go, sqlc, sqlite and python3:
+
+```bash
+nix develop
+sqlc generate
+go build .
+go test ./...
+```
 
 ### sqlc
 

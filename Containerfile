@@ -1,4 +1,4 @@
-FROM golang:1.25 AS builder
+FROM golang:1.27 AS builder
 
 COPY --from=sqlc/sqlc:latest /workspace/sqlc /usr/local/bin/sqlc
 
