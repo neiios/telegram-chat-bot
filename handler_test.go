@@ -1030,6 +1030,31 @@ func TestStatsBySeasonDefaultsToCurrentYear(t *testing.T) {
 	}
 }
 
+func TestStatsByWinterDefaultsToNextYearInDecember(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+	env.handler.todayFunc = func() string { return "2025-12-15" }
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
+		ChatID: 100, UserID: 1, PlayedDate: "2025-12-10",
+	})
+	if err != nil {
+		t.Fatalf("SaveResult: %v", err)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats winter"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "winter 2026") {
+		t.Errorf("expected next-year winter header, got: %s", got)
+	}
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("expected December result in stats, got: %s", got)
+	}
+}
+
 func TestStatsBySeasonNoResults(t *testing.T) {
 	env := setup(t)
 	ctx := context.Background()

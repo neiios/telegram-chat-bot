@@ -345,9 +345,13 @@ func (h *Handler) handleStats(ctx context.Context, msg *Message, arg string) err
 
 	fields := strings.Fields(strings.ToLower(arg))
 	if len(fields) == 1 && isSeason(fields[0]) {
-		year, err := strconv.Atoi(h.todayFunc()[:4])
+		today, err := time.Parse("2006-01-02", h.todayFunc())
 		if err != nil {
 			return err
+		}
+		year := today.Year()
+		if fields[0] == "winter" && today.Month() == time.December {
+			year++
 		}
 		return h.handleStatsBySeason(ctx, msg, year, fields[0])
 	}
