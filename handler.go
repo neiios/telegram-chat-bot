@@ -293,6 +293,48 @@ func (h *Handler) todayWinnerID(ctx context.Context, chatID int64) int64 {
 	return result.UserID
 }
 
+var seasonStartMonth = map[string]time.Month{
+	"winter": time.December,
+	"spring": time.March,
+	"summer": time.June,
+	"fall":   time.September,
+	"autumn": time.September,
+}
+
+func isSeason(s string) bool {
+	_, ok := seasonStartMonth[s]
+	return ok
+}
+
+func parseYearSeason(first, second string) (int, string, bool) {
+	if isSeason(first) {
+		first, second = second, first
+	}
+	if !isSeason(second) {
+		return 0, "", false
+	}
+	year, err := strconv.Atoi(first)
+	if err != nil || year < 2000 || year > 2100 {
+		return 0, "", false
+	}
+	return year, second, true
+}
+
+func seasonRange(year int, season string) (string, string) {
+	start := seasonStartMonth[season]
+	fromYear := year
+	if start == time.December {
+		fromYear = year - 1
+	}
+	toMonth := start + 3
+	if toMonth > time.December {
+		toMonth -= 12
+	}
+	from := fmt.Sprintf("%04d-%02d-01", fromYear, start)
+	to := fmt.Sprintf("%04d-%02d-01", year, toMonth)
+	return from, to
+}
+
 func (h *Handler) handleStats(ctx context.Context, msg *Message, arg string) error {
 	if arg == "" {
 		arg = h.todayFunc()[:4]
@@ -300,7 +342,60 @@ func (h *Handler) handleStats(ctx context.Context, msg *Message, arg string) err
 	if arg == "all" {
 		return h.handleStatsAll(ctx, msg)
 	}
+
+	fields := strings.Fields(strings.ToLower(arg))
+	if len(fields) == 1 && isSeason(fields[0]) {
+		year, err := strconv.Atoi(h.todayFunc()[:4])
+		if err != nil {
+			return err
+		}
+		return h.handleStatsBySeason(ctx, msg, year, fields[0])
+	}
+	if len(fields) == 2 {
+		year, season, ok := parseYearSeason(fields[0], fields[1])
+		if !ok {
+			return h.send(ctx, msg.Chat.ID, h.tr.Getf(TrStatsInvalidPeriod, arg))
+		}
+		return h.handleStatsBySeason(ctx, msg, year, season)
+	}
 	return h.handleStatsByYear(ctx, msg, arg)
+}
+
+func (h *Handler) handleStatsBySeason(ctx context.Context, msg *Message, year int, season string) error {
+	from, to := seasonRange(year, season)
+
+	stats, err := h.storage.Queries.GetStatsByYear(ctx, db.GetStatsByYearParams{
+		ChatID:       msg.Chat.ID,
+		PlayedDate:   from,
+		PlayedDate_2: to,
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(stats) == 0 {
+		return h.send(ctx, msg.Chat.ID, h.tr.Getf(TrStatsNoResultsSeason, season, year))
+	}
+
+	return h.sendStats(ctx, msg.Chat.ID, h.tr.Getf(TrStatsSeasonHeader, season, year), stats)
+}
+
+func (h *Handler) sendStats(ctx context.Context, chatID int64, header string, stats []db.GetStatsByYearRow) error {
+	winnerID := h.todayWinnerID(ctx, chatID)
+
+	var sb strings.Builder
+	sb.WriteString(header)
+	sb.WriteString("\n\n")
+	for i, s := range stats {
+		name := s.FirstName
+		if s.UserID == winnerID {
+			name = "👑 " + s.FirstName
+		}
+		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, name, s.Wins))
+		sb.WriteString("\n")
+	}
+
+	return h.send(ctx, chatID, sb.String())
 }
 
 func (h *Handler) handleStatsAll(ctx context.Context, msg *Message) error {
@@ -313,21 +408,12 @@ func (h *Handler) handleStatsAll(ctx context.Context, msg *Message) error {
 		return h.send(ctx, msg.Chat.ID, h.tr.Get(TrNoParticipants))
 	}
 
-	winnerID := h.todayWinnerID(ctx, msg.Chat.ID)
-
-	var sb strings.Builder
-	sb.WriteString(h.tr.Get(TrStatsHeader))
-	sb.WriteString("\n\n")
+	rows := make([]db.GetStatsByYearRow, len(stats))
 	for i, s := range stats {
-		name := s.FirstName
-		if s.UserID == winnerID {
-			name = "👑 " + s.FirstName
-		}
-		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, name, s.Wins))
-		sb.WriteString("\n")
+		rows[i] = db.GetStatsByYearRow(s)
 	}
 
-	return h.send(ctx, msg.Chat.ID, sb.String())
+	return h.sendStats(ctx, msg.Chat.ID, h.tr.Get(TrStatsHeader), rows)
 }
 
 func (h *Handler) handleStatsByYear(ctx context.Context, msg *Message, arg string) error {
@@ -352,21 +438,7 @@ func (h *Handler) handleStatsByYear(ctx context.Context, msg *Message, arg strin
 		return h.send(ctx, msg.Chat.ID, h.tr.Getf(TrStatsNoResults, year))
 	}
 
-	winnerID := h.todayWinnerID(ctx, msg.Chat.ID)
-
-	var sb strings.Builder
-	sb.WriteString(h.tr.Getf(TrStatsYearHeader, year))
-	sb.WriteString("\n\n")
-	for i, s := range stats {
-		name := s.FirstName
-		if s.UserID == winnerID {
-			name = "👑 " + s.FirstName
-		}
-		sb.WriteString(h.tr.Getf(TrStatsLine, i+1, name, s.Wins))
-		sb.WriteString("\n")
-	}
-
-	return h.send(ctx, msg.Chat.ID, sb.String())
+	return h.sendStats(ctx, msg.Chat.ID, h.tr.Getf(TrStatsYearHeader, year), stats)
 }
 
 func (h *Handler) isAdmin(userID int64) bool {

@@ -19,7 +19,7 @@ Each day, one random participant is selected as the winner.
 |---------|-------------|
 | `/join` | Join the roulette game |
 | `/roll` | Spin the roulette |
-| `/stats` | Show win statistics |
+| `/stats [all\|year\|season\|year season]` | Show win statistics, e.g. `/stats 2026 fall` |
 | `/participants` | List all participants |
 
 ## Customization

@@ -43,21 +43,24 @@ func setup(t *testing.T) *testEnv {
 	t.Cleanup(func() { storage.Close() })
 
 	translations := map[string]string{
-		"join_success":        "Welcome to the roulette! You're in the game now.",
-		"leave_success":       "%s has left the roulette.",
-		"leave_not_in_game":   "You're not in the game yet.",
-		"no_participants":     "No players registered yet. Use /join to enter the roulette!",
-		"already_played":      "The wheel has already been spun today! Today's winner is %s!",
-		"fallback_winner":     "And the winner is... %s!",
-		"stats_header":        "<b>Hall of Fame:</b>",
-		"stats_year_header":   "<b>Hall of Fame (%d):</b>",
-		"stats_invalid_year":  "Invalid year: %s",
-		"stats_no_results":    "No results for %d.",
-		"stats_line":          "%d. %s — %d win(s)",
-		"participants_header": "<b>Players in the roulette:</b>",
-		"reset_no_result":     "Nothing to reset. The wheel hasn't been spun yet.",
-		"reset_success":       "The wheel has been reset. Spin again with /roll!",
-		"unknown_user":        "Player #%d",
+		"join_success":            "Welcome to the roulette! You're in the game now.",
+		"leave_success":           "%s has left the roulette.",
+		"leave_not_in_game":       "You're not in the game yet.",
+		"no_participants":         "No players registered yet. Use /join to enter the roulette!",
+		"already_played":          "The wheel has already been spun today! Today's winner is %s!",
+		"fallback_winner":         "And the winner is... %s!",
+		"stats_header":            "<b>Hall of Fame:</b>",
+		"stats_year_header":       "<b>Hall of Fame (%d):</b>",
+		"stats_season_header":     "<b>Hall of Fame (%s %d):</b>",
+		"stats_invalid_year":      "Invalid year: %s",
+		"stats_invalid_period":    "Invalid period: %s",
+		"stats_no_results":        "No results for %d.",
+		"stats_no_results_season": "No results for %s %d.",
+		"stats_line":              "%d. %s — %d win(s)",
+		"participants_header":     "<b>Players in the roulette:</b>",
+		"reset_no_result":         "Nothing to reset. The wheel hasn't been spun yet.",
+		"reset_success":           "The wheel has been reset. Spin again with /roll!",
+		"unknown_user":            "Player #%d",
 	}
 	for k, v := range translations {
 		if _, err := storage.db.ExecContext(ctx,
@@ -926,5 +929,151 @@ func TestExtractArgs(t *testing.T) {
 				t.Errorf("extractArgs() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestStatsBySeason(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
+		ChatID: 100, UserID: 1, PlayedDate: "2025-10-01",
+	})
+	if err != nil {
+		t.Fatalf("SaveResult: %v", err)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats 2025 fall"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "fall 2025") {
+		t.Errorf("expected season in header, got: %s", got)
+	}
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("expected Alice in stats, got: %s", got)
+	}
+}
+
+func TestStatsBySeasonReversedOrder(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
+		ChatID: 100, UserID: 1, PlayedDate: "2025-10-01",
+	})
+	if err != nil {
+		t.Fatalf("SaveResult: %v", err)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats fall 2025"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("expected Alice in stats, got: %s", got)
+	}
+}
+
+func TestStatsBySeasonWinterSpansYears(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
+		ChatID: 100, UserID: 1, PlayedDate: "2025-12-15",
+	})
+	if err != nil {
+		t.Fatalf("SaveResult: %v", err)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats 2026 winter"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("expected December result in next year's winter, got: %s", got)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats 2025 winter"))
+
+	got = env.sender.last().Text
+	if !strings.Contains(got, "No results for winter 2025") {
+		t.Errorf("expected no results for previous winter, got: %s", got)
+	}
+}
+
+func TestStatsBySeasonDefaultsToCurrentYear(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
+		ChatID: 100, UserID: 1, PlayedDate: "2026-01-10",
+	})
+	if err != nil {
+		t.Fatalf("SaveResult: %v", err)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats winter"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "winter 2026") {
+		t.Errorf("expected current-year winter header, got: %s", got)
+	}
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("expected Alice in stats, got: %s", got)
+	}
+}
+
+func TestStatsBySeasonNoResults(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	env.sender.reset()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats 2020 summer"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "No results for summer 2020") {
+		t.Errorf("expected no-results message, got: %s", got)
+	}
+}
+
+func TestStatsInvalidPeriod(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/stats 2026 foo"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "Invalid period") {
+		t.Errorf("expected invalid-period message, got: %s", got)
+	}
+}
+
+func TestStatsViaRollCommandWithSeason(t *testing.T) {
+	env := setup(t)
+	ctx := context.Background()
+
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/join"))
+	err := env.storage.Queries.SaveResult(ctx, db.SaveResultParams{
+		ChatID: 100, UserID: 1, PlayedDate: "2025-10-01",
+	})
+	if err != nil {
+		t.Fatalf("SaveResult: %v", err)
+	}
+
+	env.sender.reset()
+	env.handler.HandleUpdate(ctx, commandMsg(100, 1, "Alice", "/rollstats 2025 fall"))
+
+	got := env.sender.last().Text
+	if !strings.Contains(got, "fall 2025") {
+		t.Errorf("expected season stats via /rollstats, got: %s", got)
 	}
 }
